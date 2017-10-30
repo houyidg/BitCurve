@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#3F51B5</color>
+    <color name="colorPrimaryDark">#303F9F</color>
+    <color name="colorAccent">#FF4081</color>
+    <color name="color_999999">#FF4081</color>
+    <color name="color_ff4631">#FF4081</color>
+    <color name="color_f2f2f2">#FF4081</color>
+    <color name="color_yellow">#F7E487</color>
+    <color name="color_red">#FA3D91</color>
+    <color name="color_deep_red">#E33BA1</color>
+    <color name="color_white">#FFffff</color>
+
+    <!-- 黑色主题颜色 -->
+    <color name="black_text">#00D0BA</color>
+    <color name="black_bg">#000000</color>
+    <color name="black_curve_start">#042B50</color>
+    <color name="black_curve_end">#19BF85</color>
+
+    <color name="black_rect_start">#061362</color>
+    <color name="black_rect_end">#0C5222</color>
+
+    <!-- 白色主题 -->
+    <color name="white_text"> #FF328D</color>
+    <color name="white_bg">#FFffff</color>
+    <color name="white_curve_start">#EFB4B7</color>
+    <color name="white_curve_end">#E93DA8</color>
+
+    <color name="white_rect_start">#F9E89D</color>
+    <color name="white_rect_end">#F2A8EC</color>
+</resources>
