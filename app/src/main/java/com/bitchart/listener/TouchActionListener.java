@@ -1,4 +1,4 @@
-package bitcurve.zhuxiao.com.bitcurve;
+package com.bitchart.listener;
 
 import android.view.MotionEvent;
 

@@ -1,14 +1,16 @@
-package bitcurve.zhuxiao.com.bitcurve;
+package com.bitchart.ui;
 
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 
+import com.bitchart.R;
+import com.bitchart.widget.CombineChartView;
+
 import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
-
-    LineGraphicView lineGraphicView;
+    CombineChartView lineGraphicView;
     ArrayList<Integer> yList;
     ArrayList<Integer> yRectangleList;
     private int count = 50;
@@ -21,7 +23,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        lineGraphicView = (LineGraphicView) findViewById(R.id.line_graphic);
+        lineGraphicView = (CombineChartView) findViewById(R.id.line_graphic);
         generateChart();
     }
 
@@ -51,7 +53,7 @@ public class MainActivity extends AppCompatActivity {
         int curveScale = 1;//px
         int rectScale = 2;
         int xDistance = 2;
-        lineGraphicView.setData(xRawDatas, xDistance ,yList , curveScale, yRectangleList,  rectScale);
+        lineGraphicView.setData(xRawDatas, xDistance ,yList , curveScale);
     }
 
     boolean isBlackTheme=false;

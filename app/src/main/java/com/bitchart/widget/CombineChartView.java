@@ -1,4 +1,4 @@
-package bitcurve.zhuxiao.com.bitcurve;
+package com.bitchart.widget;
 
 import android.content.Context;
 import android.content.res.Resources;
@@ -17,12 +17,15 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 
+import com.bitchart.R;
+import com.bitchart.listener.TouchActionListener;
+
 import java.util.ArrayList;
 import java.util.List;
 
 import static android.content.ContentValues.TAG;
 
-class LineGraphicView extends View implements TouchActionListener {
+public class CombineChartView extends View implements TouchActionListener {
     /**
      * 曲线上总点数
      */
@@ -125,11 +128,11 @@ class LineGraphicView extends View implements TouchActionListener {
     private ArrayList<String> xRawDatas;
     private ArrayList<Float> xList = new ArrayList<Float>();// 记录每个x的值
 
-    public LineGraphicView(Context context) {
+    public CombineChartView(Context context) {
         this(context, null);
     }
 
-    public LineGraphicView(Context context, AttributeSet attrs) {
+    public CombineChartView(Context context, AttributeSet attrs) {
         super(context, attrs);
         this.mContext = context;
         initView();
