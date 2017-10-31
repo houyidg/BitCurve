@@ -18,6 +18,7 @@ import android.view.View;
 import android.view.WindowManager;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import static android.content.ContentValues.TAG;
 
@@ -31,8 +32,7 @@ class LineGraphicView extends View implements TouchActionListener {
     /**
      * 更新皮肤
      */
-    public void updateSkin(int textColor, int bgColor, int startCurveColor, int endCurveColor, int startRectangleColor, int endRectangleColor) {
-        this.textColor = textColor;
+    public void updateSkin(int bgColor, int startCurveColor, int endCurveColor, int startRectangleColor, int endRectangleColor) {
         this.bgColor = bgColor;
 
         this.startCurveColor = startCurveColor;
@@ -45,6 +45,7 @@ class LineGraphicView extends View implements TouchActionListener {
 
     /**
      * 设置 渐变效果前者颜色所占比例
+     *
      * @param scaleX
      */
     public void setCurveGradientScaleX(float scaleX) {
@@ -55,7 +56,13 @@ class LineGraphicView extends View implements TouchActionListener {
         Line, Curve
     }
 
-    private int textColor = R.color.white_text;
+    /**
+     * 图标类型
+     */
+    private static enum ChartStyle {
+        Curve, Column, CombineDatagram
+    }
+
     private int bgColor = R.color.white_bg;
     private int startCurveColor = R.color.white_curve_start;
     private int startRectangleColor = R.color.white_rect_start;
@@ -63,76 +70,60 @@ class LineGraphicView extends View implements TouchActionListener {
     private int endRectangleColor = R.color.white_rect_end;
     private float curveGradientScaleX = 1f;
     private float rectGradientScaleX = 1f;
-
-    private static final int CIRCLE_SIZE = 10;
-    private float mPointRadius = CIRCLE_SIZE / 2;
-    private Context mContext;
-    private Paint mPaint, mTextPaint;
-    private Resources res;
-    private DisplayMetrics dm;
-    private Linestyle mStyle = Linestyle.Curve;
-    private int canvasHeight;
-    private int canvasWidth;
-    /**
-     * 曲线图的 基准高度
-     */
-    private int bheight = 0;
-    /**
-     * y轴的基准高度
-     */
-    private int height = 0;
-    /**
-     * 矩形图的 基准高度
-     */
-    private int bRectangleHeight = 0;
-
     /**
      * 两图上下间距
      */
     private int dyEachOther = 50;
+    private int marginTop = 10;
+    private int marginBottom = 10;
+    private static final int CIRCLE_SIZE = 10;
+    private float mPointRadius = CIRCLE_SIZE / 2;
+
+    private Context mContext;
+    private Paint mPaint;
+    private Resources res;
+    private DisplayMetrics dm;
+    private Linestyle mLineStyle = Linestyle.Curve;
+    private ChartStyle mChartStyle;
+    private int canvasHeight;
+    private int canvasWidth;
 
     /**
-     * y轴宽度所需的空间
+     * 矩形图的最大y
      */
-    private int blwidh;
+    private int rectMaxY = 0;
+    private int rectMinY = 0;
+    /**
+     * 曲线图的 基准高度
+     */
+    private int curveMaxY = 0;
+    private int curveMinY = 0;
+    private int rectangleScaleFactor = 1;
+    private int curveScaleFactor = 1;
+
     private boolean isMeasure = true;
-    /**
-     * 曲线Y轴最大值
-     */
-    private int maxYListValue;
-
-    private int maxYValue;
+    private float maxYValue;
     /**
      * 矩形所在区域最大值
      */
     private float maxYRectangleValue;
-    /**
-     * 矩形数据最大值
-     */
-    private float maxYRectangleListValue;
-    /**
-     * Y轴间距值
-     */
-    private int averageYValue;
+
     /**
      * x轴的间距
      */
     private int xDistanceValue;
-    private int marginTop = 20;
-    private int marginBottom = 40;
-    private String selectValue = "";
+
 
     /**
      * 纵坐标值
      */
-    private ArrayList<Double> yRawData;
-    private ArrayList<Integer> yRectabgleRawData;
+    private ArrayList<Integer> yRawData;
+    private List<Integer> yRectabgleRawData;
     /**
      * 横坐标值
      */
     private ArrayList<String> xRawDatas;
     private ArrayList<Float> xList = new ArrayList<Float>();// 记录每个x的值
-    private int spacingHeight;
 
     public LineGraphicView(Context context) {
         this(context, null);
@@ -182,42 +173,61 @@ class LineGraphicView extends View implements TouchActionListener {
         this.res = mContext.getResources();
         this.mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
-        this.mTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-
         dm = new DisplayMetrics();
         WindowManager wm = (WindowManager) mContext.getSystemService(Context.WINDOW_SERVICE);
         wm.getDefaultDisplay().getMetrics(dm);
     }
 
-    int left;
-    int top;
-    int right;
-    int bottom;
 
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         if (isMeasure) {
             this.canvasHeight = getHeight();
             this.canvasWidth = getWidth();
-            left = getLeft();
-            top = getTop();
-            right = getRight();
-            bottom = getBottom();
-            Log.e(TAG, "onSizeChanged: " + left + "," + top + "," + right + "," + bottom);
-            if (height == 0) {
-                height = (canvasHeight - marginBottom);
-            }
-            if (bheight == 0) {
-                bheight = (int) (canvasHeight - marginBottom - maxYRectangleValue - dyEachOther);
-                curveLineRect = new Rect(0, (int) (canvasHeight - marginBottom - maxYRectangleValue - dyEachOther - maxYValue), canvasWidth, bheight);
+
+            switch (mChartStyle) {
+                case Column: {
+                    if (rectMaxY == 0) {
+                        rectMinY = marginTop;
+                        rectMaxY = (canvasHeight - marginBottom);
+                        rectangleLineRect = new Rect(0, rectMinY, canvasWidth, rectMaxY);
+                    }
+                    break;
+                }
+
+                case Curve: {
+                    if (curveMaxY == 0) {
+                        curveMinY = marginTop;
+                        curveMaxY = (canvasHeight - marginBottom);
+                        curveLineRect = new Rect(0, curveMinY, canvasWidth, curveMaxY);
+                    }
+                    break;
+                }
+
+                case CombineDatagram: {
+                    int enableValue = canvasHeight - marginBottom - marginTop - dyEachOther;
+                    float rectScale = rectangleScaleFactor * 1.0f / (rectangleScaleFactor + curveScaleFactor);
+                    float curveScale = curveScaleFactor * 1.0f / (rectangleScaleFactor + curveScaleFactor);
+                    maxYRectangleValue = rectScale * enableValue;
+                    maxYValue = curveScale * enableValue;
+                    if (curveMaxY == 0) {
+                        curveMinY = marginTop;
+                        curveMaxY = (int) (curveMinY + maxYValue);
+                        curveLineRect = new Rect(0, curveMinY, canvasWidth, curveMaxY);
+                    }
+
+                    if (rectMaxY == 0) {
+                        rectMinY = curveMaxY + dyEachOther;
+                        rectMaxY = (int) (rectMinY + maxYRectangleValue);
+                        rectangleLineRect = new Rect(0, rectMinY, canvasWidth, rectMaxY);
+                    }
+
+                    Log.e(TAG, "onSizeChanged: maxYValue" + maxYValue + ",maxYRectangleValue:" + maxYRectangleValue + ",rectMaxY:" + rectMaxY + ",rectMinY:" + rectMinY + ",curveMaxY:" + curveMaxY + ",curveMinY:" + curveMinY);
+
+                    break;
+                }
             }
 
-            if (bRectangleHeight == 0) {
-                bRectangleHeight = (canvasHeight - marginBottom);
-                rectangleLineRect = new Rect(0, (int) (canvasHeight - marginBottom - maxYRectangleValue), canvasWidth, bRectangleHeight);
-            }
-
-//            blwidh = dip2px(30);
             isMeasure = false;
         }
     }
@@ -228,27 +238,28 @@ class LineGraphicView extends View implements TouchActionListener {
     @Override
     protected void onDraw(Canvas canvas) {
         prepareXList();
-//        drawAllXLine(canvas);
-//        // 画直线（纵向）
-//        drawAllYLine(canvas);
-        // 点的操作设置
-        mPoints = getPoints();
-        mPaint.setStrokeWidth(dip2px(2.5f));
-        mPaint.setStyle(Style.STROKE);
-        mPaint.setShader(new LinearGradient(0, 0, curveGradientScaleX*canvasWidth, 0, res.getColor(startCurveColor), res.getColor(endCurveColor), Shader.TileMode.MIRROR));
-        if (mStyle == Linestyle.Curve) {
-            drawScrollLine(canvas);
-        } else {
-            drawLine(canvas);
+
+        if (mChartStyle == ChartStyle.Curve || mChartStyle == ChartStyle.CombineDatagram) {
+            mPoints = getPoints();
+            mPaint.setStrokeWidth(dip2px(2.5f));
+            mPaint.setStyle(Style.STROKE);
+            mPaint.setShader(new LinearGradient(0, 0, curveGradientScaleX * canvasWidth, 0, res.getColor(startCurveColor), res.getColor(endCurveColor), Shader.TileMode.MIRROR));
+            if (mLineStyle == Linestyle.Curve) {
+                drawScrollLine(canvas);
+            } else {
+                drawLine(canvas);
+            }
+
+            mPaint.setStyle(Style.FILL);
+            drawCircles(canvas);
         }
-        mPaint.setStyle(Style.FILL);
-        drawCircles(canvas);
 
-        mRects = getmRects();
-        mPaint.setShader(new LinearGradient(0, 0, rectGradientScaleX*canvasWidth, 0, res.getColor(startRectangleColor), res.getColor(endRectangleColor), Shader.TileMode.MIRROR));
-        drawRectangle(canvas, mRects);
 
-        drawBtcText(canvas);
+        if (mChartStyle == ChartStyle.Column || mChartStyle == ChartStyle.CombineDatagram) {
+            mRects = getmRects();
+            mPaint.setShader(new LinearGradient(0, 0, rectGradientScaleX * canvasWidth, 0, res.getColor(startRectangleColor), res.getColor(endRectangleColor), Shader.TileMode.MIRROR));
+            drawRectangle(canvas, mRects);
+        }
 
         drawBg(canvas);
     }
@@ -259,74 +270,85 @@ class LineGraphicView extends View implements TouchActionListener {
 
     private void prepareXList() {
         xList.clear();
-        float perSize = canvasWidth * 1.0f / (yRawData.size() + 1);
-        for (int i = 0; i < yRawData.size(); i++) {
+        float perSize = canvasWidth * 1.0f / (xRawDatas.size() + 1);
+        for (int i = 0; i < xRawDatas.size(); i++) {
             xList.add(perSize * (i + 1));
         }
+    }
 
-        Log.e(TAG, "prepareXList: xList" + xList.get(xList.size() - 1) + ",canvasWidthL:" + canvasWidth + ",perSize:" + perSize + ",xList.size():" + xList.size());
+    private Point[] getPoints() {
+        Point[] points = new Point[yRawData.size()];
+        int minRawValue = yRawData.get(0), maxRawValue = yRawData.get(0);
+        for (int i = 1; i < yRawData.size(); i++) {
+            Integer value = yRawData.get(i);
+            if (maxRawValue < value) {
+                maxRawValue = value;
+            }
+            if (minRawValue > value) {
+                minRawValue = value;
+            }
+        }
+
+        int newMaxValue = Integer.MIN_VALUE;
+        int newMinValue = Integer.MAX_VALUE;
+        //转换坐标系后的数组
+        Integer[] newData = new Integer[yRawData.size()];
+        for (int i = 0; i < yRawData.size(); i++) {
+            float oldValue = yRawData.get(i) * 1.0f;
+            int newValue = (int) (curveMaxY * (1 - (oldValue / maxRawValue)));
+            if (newMaxValue < newValue) {
+                newMaxValue = newValue;
+            }
+            if (newMinValue > newValue) {
+                newMinValue = newValue;
+            }
+            newData[i] = newValue;
+        }
+
+      getNewMaxValue(newMaxValue, newMinValue,curveMinY,curveMaxY, newData);
+
+
+        for (int i = 0; i < newData.length; i++) {
+            points[i] = new Point(xList.get(i).intValue(), newData[i]);
+        }
+        return points;
+    }
+
+    private int getNewMaxValue(int newMaxValue, int newMinValue,int standardMinY, int standardMaxY, Integer[] newData) {
+        //最低点向下平移
+        if (newMinValue < standardMinY) {
+            int dy = standardMinY - newMinValue;
+            newMaxValue += dy;
+            newMinValue += dy;
+            for (int i = 0; i < newData.length; i++) {
+                newData[i] += dy;
+            }
+
+            //再缩放
+            for (int i = 0; i < newData.length; i++) {
+                float oldValue = newData[i] * 1.0f;
+                int newValue = (int) (oldValue * standardMaxY / newMaxValue);
+                newData[i] = newValue;
+            }
+
+
+            int newMaxValue2 = (int) (newMaxValue * standardMaxY / newMaxValue*1.0f);
+            int newMinValue2 = (int) (newMinValue * standardMaxY / newMaxValue*1.0f);
+
+            if(newMinValue2+2 >= standardMinY && newMaxValue2-2 <= standardMaxY){
+                return newMaxValue2;
+            }
+            //缩放之后再次获取最小值
+            Log.e(TAG, "getNewMaxValue: newMinValue:"+newMinValue+",standardMinY:"+standardMinY+",newMaxValue:"+newMaxValue+",standardMaxY:"+standardMaxY+",newMaxValue2:"+newMaxValue2+",newMinValue2:"+newMinValue2);
+            return  getNewMaxValue( newMaxValue2,  newMinValue2, standardMinY,  standardMaxY,newData);
+        }else{
+            return newMaxValue;
+        }
     }
 
     private void drawCircles(Canvas canvas) {
         for (int i = 0; i < mPoints.length; i++) {
             canvas.drawCircle(mPoints[i].x, mPoints[i].y, CIRCLE_SIZE / 2, mPaint);
-        }
-    }
-
-    private void drawBtcText(Canvas canvas) {
-        mTextPaint.setColor(res.getColor(textColor));
-        mTextPaint.setTextSize(dip2px(60));
-        mTextPaint.setStrokeWidth(dip2px(20));
-        Rect rect = new Rect();
-        mTextPaint.getTextBounds("22450", 0, 5, rect);
-        int width = rect.width();
-        int height = rect.height();
-        int singleWidth = width / 5;
-
-        mTextPaint.setTextSize(dip2px(20));
-        mTextPaint.setStrokeWidth(dip2px(10));
-        int left = (this.canvasWidth - width) / 2 - singleWidth;
-        int top = bheight - height + 5 - maxYValue;
-        float ￥Width = mTextPaint.measureText("￥");
-        canvas.drawText("￥", left, top + 5, mTextPaint);
-
-        mTextPaint.setTextSize(dip2px(60));
-        mTextPaint.setStrokeWidth(dip2px(20));
-        left += ￥Width;
-        canvas.drawText("22450", left, top, mTextPaint);
-
-        mTextPaint.setTextSize(dip2px(30));
-        mTextPaint.setStrokeWidth(dip2px(10));
-        left += +width;
-        canvas.drawText(".32 ", left, top, mTextPaint);
-
-        top -= height + 50;
-        canvas.drawText(selectValue, left - width - ￥Width, top, mTextPaint);
-    }
-
-    /**
-     * 画所有横向表格，包括X轴
-     */
-    private void drawAllXLine(Canvas canvas) {
-        for (int i = 0; i < spacingHeight + 1; i++) {
-            canvas.drawLine(blwidh, height - (height / spacingHeight) * i + marginTop, (canvasWidth - blwidh),
-                    height - (height / spacingHeight) * i + marginTop, mPaint);// Y坐标
-            drawText(String.valueOf(averageYValue * i) + "," + (height - (height / spacingHeight) * i + marginTop), blwidh / 2, height - (height / spacingHeight) * i + marginTop,
-                    canvas);
-        }
-    }
-
-    /**
-     * 画所有纵向表格，包括Y轴
-     */
-    private void drawAllYLine(Canvas canvas) {
-        for (int i = 0; i < yRawData.size(); i++) {
-            canvas.drawLine(blwidh + (canvasWidth - blwidh) / yRawData.size() * i, marginTop, blwidh
-                    + (canvasWidth - blwidh) / yRawData.size() * i, height + marginTop, mPaint);
-            drawText(xRawDatas.get(i), blwidh + (canvasWidth - blwidh) / yRawData.size() * i, height + dip2px(26),
-                    canvas);// X坐标
-
-            Log.e(TAG, "drawAllYLine: x:" + (blwidh + (canvasWidth - blwidh) / yRawData.size() * i) + ",y:" + (height + dip2px(26)));
         }
     }
 
@@ -351,12 +373,6 @@ class LineGraphicView extends View implements TouchActionListener {
         }
     }
 
-    private void drawRectangle(Canvas canvas, Rect[] rects) {
-        for (int i = 0; i < rects.length; i++) {
-            canvas.drawRect(rects[i], mPaint);
-        }
-    }
-
     private void drawLine(Canvas canvas) {
         Point startp = new Point();
         Point endp = new Point();
@@ -367,42 +383,48 @@ class LineGraphicView extends View implements TouchActionListener {
         }
     }
 
-    private void drawText(String text, int x, int y, Canvas canvas) {
-        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        p.setTextSize(dip2px(12));
-        p.setColor(res.getColor(R.color.color_999999));
-        p.setTextAlign(Paint.Align.LEFT);
-        canvas.drawText(text, x, y, p);
-    }
-
-    private Point[] getPoints() {
-        Point[] points = new Point[yRawData.size()];
-
-        //maxYValue
-        float tmpValue = (maxYValue) * maxYListValue / bheight;
-
-        float factor = tmpValue / maxYListValue;
-
-        for (int i = 0; i < yRawData.size(); i++) {
-            int ph = (int) (bheight * (1 - (yRawData.get(i) * factor / maxYListValue)));
-            Float x = xList.get(i);
-            points[i] = new Point(x.intValue(), ph + marginTop);
+    private void drawRectangle(Canvas canvas, Rect[] rects) {
+        for (int i = 0; i < rects.length; i++) {
+            canvas.drawRect(rects[i], mPaint);
         }
-        return points;
     }
 
     private Rect[] getmRects() {
         Rect[] rects = new Rect[yRectabgleRawData.size()];
 
-        //计算临界 y轴值
-        float tmpValue = (maxYRectangleValue) * maxYRectangleListValue / bRectangleHeight;
-
-        float factor = tmpValue / maxYRectangleListValue;
-
-        int dx = (int) (xList.get(1) - xList.get(0) - (xDistanceValue <= 2 ? 2 : xDistanceValue));
+        int minRawValue = yRectabgleRawData.get(0), maxRawValue = yRectabgleRawData.get(0);
         for (int i = 0; i < yRectabgleRawData.size(); i++) {
-            int top = (int) (bRectangleHeight * (1 - (yRectabgleRawData.get(i) * factor / maxYRectangleListValue)) + marginTop);
-            int bottom = bRectangleHeight + marginTop;
+            Integer value = yRectabgleRawData.get(i);
+            if (maxRawValue < value) {
+                maxRawValue = value;
+            }
+            if (minRawValue > value) {
+                minRawValue = value;
+            }
+        }
+
+        int newMaxValue = Integer.MIN_VALUE;
+        int newMinValue = Integer.MAX_VALUE;
+        //转换坐标系后的数组
+        Integer[] newData = new Integer[yRectabgleRawData.size()];
+        for (int i = 0; i < yRectabgleRawData.size(); i++) {
+            float oldValue = yRectabgleRawData.get(i) * 1.0f;
+            int newValue = (int) (rectMaxY * (1 - (oldValue / maxRawValue)));
+            if (newMaxValue < newValue) {
+                newMaxValue = newValue;
+            }
+            if (newMinValue > newValue) {
+                newMinValue = newValue;
+            }
+            newData[i] = newValue;
+        }
+
+        getNewMaxValue(newMaxValue, newMinValue,rectMinY,rectMaxY, newData);
+        //再缩放
+        int dx = (int) (xList.get(1) - xList.get(0) - (xDistanceValue <= 2 ? 2 : xDistanceValue));
+        for (int i = 0; i < newData.length; i++) {
+            int top = newData[i];
+            int bottom = rectMaxY;
             float x = xList.get(i);
             int left = (int) (x - dx / 2);
             int right = (int) (x + dx / 2);
@@ -413,32 +435,64 @@ class LineGraphicView extends View implements TouchActionListener {
         return rects;
     }
 
-    /**
-     * @param yRawData
-     * @param yRectangleList
-     * @param xRawData
-     * @param maxYValue
-     * @param maxYListValue
-     * @param xDistanceValue
-     * @param averageYValue
-     * @param maxYRectangleValue
-     * @param maxYRectangleListValue
-     */
-    public void setData(ArrayList<Double> yRawData, ArrayList<Integer> yRectangleList, ArrayList<String> xRawData, int maxYValue, int maxYListValue, int xDistanceValue, int averageYValue,
-                        int maxYRectangleValue, int maxYRectangleListValue) {
-        this.maxYValue = maxYValue;
-        this.maxYListValue = maxYListValue;
-        this.maxYRectangleListValue = maxYRectangleListValue;
-        this.xDistanceValue = xDistanceValue;
-        this.maxYRectangleValue = maxYRectangleValue;
-        this.averageYValue = averageYValue;
-        this.mPoints = new Point[yRawData.size()];
-        this.xRawDatas = xRawData;
-        this.yRectabgleRawData = yRectangleList;
-        this.yRawData = yRawData;
-        this.spacingHeight = maxYListValue / averageYValue;
+
+    public void setData(ArrayList<String> xRawData, int xDistanceValue, ArrayList<Integer> yRawData, int curveScale, ArrayList<Integer> yRectangleList,
+                        int rectangleScale) {
+        //曲线坐标
+        setCurveParams(yRawData, curveScale);
+
+        //柱形图坐标
+        setRectangleParams(yRectangleList, rectangleScale);
+
+        //公共坐标参数
+        setXParams(xRawData, xDistanceValue);
+
+        mChartStyle = ChartStyle.CombineDatagram;
+
         invalidate();
     }
+
+    public void setData(ArrayList<String> xRawData, int xDistanceValue, ArrayList<Integer> yRectangleList,
+                        int rectangleScale) {
+        //柱形图坐标
+        setRectangleParams(yRectangleList, rectangleScale);
+
+        //公共坐标参数
+        setXParams(xRawData, xDistanceValue);
+
+        mChartStyle = ChartStyle.Column;
+
+        invalidate();
+    }
+
+    public void setCurveData(ArrayList<String> xRawData, int xDistanceValue, ArrayList<Integer> yRawData, int curveScale) {
+        //曲线坐标
+        setCurveParams(yRawData, curveScale);
+
+        //公共坐标参数
+        setXParams(xRawData, xDistanceValue);
+
+        mChartStyle = ChartStyle.Curve;
+
+        invalidate();
+    }
+
+    private void setXParams(ArrayList<String> xRawData, int xDistanceValue) {
+        this.xDistanceValue = xDistanceValue;
+        this.xRawDatas = xRawData;
+    }
+
+    private void setRectangleParams(List<Integer> yRectangleList, int rectangleScale) {
+        this.yRectabgleRawData = yRectangleList;
+        this.rectangleScaleFactor = rectangleScale;
+    }
+
+    private void setCurveParams(ArrayList<Integer> yRawData, int curveScale) {
+        this.yRawData = yRawData;
+        this.curveScaleFactor = curveScale;
+    }
+
+    String selectValue = "";
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
@@ -472,27 +526,4 @@ class LineGraphicView extends View implements TouchActionListener {
         return (int) (dpValue * dm.density + 0.5f);
     }
 
-    public void setTotalvalue(int maxValue) {
-        this.maxYListValue = maxValue;
-    }
-
-    public void setPjvalue(int averageValue) {
-        this.averageYValue = averageValue;
-    }
-
-    public void setMargint(int marginTop) {
-        this.marginTop = marginTop;
-    }
-
-    public void setMarginb(int marginBottom) {
-        this.marginBottom = marginBottom;
-    }
-
-    public void setMstyle(Linestyle mStyle) {
-        this.mStyle = mStyle;
-    }
-
-    public void setBheight(int bheight) {
-        this.bheight = bheight;
-    }
 }

@@ -106,20 +106,11 @@
             android:gravity="center"
             />
     </LinearLayout>
-    <RelativeLayout
+    <bitcurve.zhuxiao.com.bitcurve.LineGraphicView
+        android:id="@+id/line_graphic"
+        android:background="#F8F8FF"
         android:layout_width="match_parent"
-        android:layout_height="300dp">
-        <bitcurve.zhuxiao.com.bitcurve.LineGraphicView
-            android:background="#F8F8FF"
-            android:id="@+id/line_graphic"
-            android:layout_width="match_parent"
-            android:layout_height="300dp" />
-        <bitcurve.zhuxiao.com.bitcurve.BarrageView
-            android:id="@+id/containerView"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@android:color/transparent" />
-    </RelativeLayout>
+        android:layout_height="330px" />
 
     <LinearLayout
         android:layout_width="match_parent"

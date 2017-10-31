@@ -4,13 +4,12 @@ import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
 
     LineGraphicView lineGraphicView;
-    ArrayList<Double> yList;
+    ArrayList<Integer> yList;
     ArrayList<Integer> yRectangleList;
     private int count = 50;
 
@@ -34,9 +33,7 @@ public class MainActivity extends AppCompatActivity {
         yRectangleList = new ArrayList<>();
         ArrayList<String> xRawDatas = new ArrayList<>();
         for (int i = 0; i < count; i++) {
-            double v = Math.random() * count;
-            BigDecimal b1 = new BigDecimal(Double.toString(v));
-            yList.add(b1.setScale(3, BigDecimal.ROUND_HALF_UP).doubleValue());
+            yList.add((int) (Math.random() * count));
             yRectangleList.add((int) (Math.random() * count));
             xRawDatas.add(i + "");
         }
@@ -44,28 +41,26 @@ public class MainActivity extends AppCompatActivity {
          *  * @param yRawData
          * @param yRectangleList
          * @param xRawData
-         * @param maxYValue
+         * @param curveScale
          * @param maxYListValue
          * @param xDistanceValue
          * @param averageYValue
-         * @param maxYRectangleValue
+         * @param rectScale
          * @param maxYRectangleListValue
          */
-        int maxYValue = 150;//px
-        int maxYRectangleValue = 100;
-        int maxYListValue = count;
-        int maxYRectangleListValue = count;
-        lineGraphicView.setMarginb(50);
-        lineGraphicView.setData(yList, yRectangleList, xRawDatas, maxYValue, maxYListValue, 2, 2, maxYRectangleValue, maxYRectangleListValue);
+        int curveScale = 1;//px
+        int rectScale = 2;
+        int xDistance = 2;
+        lineGraphicView.setData(xRawDatas, xDistance ,yList , curveScale, yRectangleList,  rectScale);
     }
 
     boolean isBlackTheme=false;
     public void refreshColor(View v) {
         lineGraphicView.setCurveGradientScaleX(0.2f);
         if(!isBlackTheme){
-            lineGraphicView.updateSkin(R.color.black_text,R.color.black_bg,R.color.black_curve_start,R.color.black_curve_end,R.color.black_rect_start,R.color.black_rect_end);
+            lineGraphicView.updateSkin(R.color.black_bg,R.color.black_curve_start,R.color.black_curve_end,R.color.black_rect_start,R.color.black_rect_end);
         }else{
-            lineGraphicView.updateSkin(R.color.white_text,R.color.white_bg,R.color.white_curve_start,R.color.white_curve_end,R.color.white_rect_start,R.color.white_rect_end);
+            lineGraphicView.updateSkin(R.color.white_bg,R.color.white_curve_start,R.color.white_curve_end,R.color.white_rect_start,R.color.white_rect_end);
         }
         isBlackTheme = !isBlackTheme;
     }
