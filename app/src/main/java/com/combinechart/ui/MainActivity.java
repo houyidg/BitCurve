@@ -1,19 +1,19 @@
-package com.bitchart.ui;
+package com.combinechart.ui;
 
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 
-import com.bitchart.R;
-import com.bitchart.widget.CombineChartView;
+import com.combinechart.R;
+import com.combinechart.widget.CombineChartView;
 
 import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
     CombineChartView lineGraphicView;
-    ArrayList<Integer> yList;
-    ArrayList<Integer> yRectangleList;
-    private int count = 50;
+    ArrayList<Float> yList;
+    ArrayList<Float> yRectangleList;
+    private int count = 3;
 
     public void refresh(View v) {
         generateChart();
@@ -35,8 +35,9 @@ public class MainActivity extends AppCompatActivity {
         yRectangleList = new ArrayList<>();
         ArrayList<String> xRawDatas = new ArrayList<>();
         for (int i = 0; i < count; i++) {
-            yList.add((int) (Math.random() * count));
-            yRectangleList.add((int) (Math.random() * count));
+            yList.add((float) (Math.random() * count));
+
+            yRectangleList.add((float) (Math.random() * count));
             xRawDatas.add(i + "");
         }
         /**
@@ -50,19 +51,25 @@ public class MainActivity extends AppCompatActivity {
          * @param rectScale
          * @param maxYRectangleListValue
          */
-        int curveScale = 1;//px
-        int rectScale = 2;
         int xDistance = 2;
-        lineGraphicView.setData(xRawDatas, xDistance ,yList , curveScale);
+        lineGraphicView.setCurveData(xRawDatas, xDistance ,yList);
     }
 
     boolean isBlackTheme=false;
     public void refreshColor(View v) {
         lineGraphicView.setCurveGradientScaleX(0.2f);
         if(!isBlackTheme){
-            lineGraphicView.updateSkin(R.color.black_bg,R.color.black_curve_start,R.color.black_curve_end,R.color.black_rect_start,R.color.black_rect_end);
+            lineGraphicView.setChartSkin(getResources().getColor(R.color.black_bg),
+                    getResources().getColor(R.color.black_curve_start),
+                    getResources().getColor(R.color.black_curve_end),
+                    getResources().getColor(R.color.black_rect_start),
+                    getResources().getColor(R.color.black_rect_end));
         }else{
-            lineGraphicView.updateSkin(R.color.white_bg,R.color.white_curve_start,R.color.white_curve_end,R.color.white_rect_start,R.color.white_rect_end);
+            lineGraphicView.setChartSkin(getResources().getColor(R.color.white_bg),
+                    getResources().getColor(R.color.white_curve_start),
+                    getResources().getColor(R.color.white_curve_end),
+                    getResources().getColor(R.color.white_column_start),
+                    getResources().getColor(R.color.white_column_end));
         }
         isBlackTheme = !isBlackTheme;
     }

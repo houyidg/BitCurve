@@ -1,8 +1,9 @@
-package com.bitchart.widget;
+package com.combinechart.widget;
 
 import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Paint.Style;
@@ -16,9 +17,8 @@ import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
-
-import com.bitchart.R;
-import com.bitchart.listener.TouchActionListener;
+import com.combinechart.R;
+import com.combinechart.listener.TouchActionListener;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,14 +35,14 @@ public class CombineChartView extends View implements TouchActionListener {
     /**
      * 更新皮肤
      */
-    public void updateSkin(int bgColor, int startCurveColor, int endCurveColor, int startRectangleColor, int endRectangleColor) {
+    public void setChartSkin(int bgColor, int startCurveColor, int endCurveColor, int startColumnColor, int endColumnColor) {
         this.bgColor = bgColor;
 
         this.startCurveColor = startCurveColor;
         this.endCurveColor = endCurveColor;
 
-        this.startRectangleColor = startRectangleColor;
-        this.endRectangleColor = endRectangleColor;
+        this.startColumnColor = startColumnColor;
+        this.endColumnColor = endColumnColor;
         invalidate();
     }
 
@@ -66,19 +66,34 @@ public class CombineChartView extends View implements TouchActionListener {
         Curve, Column, CombineDatagram
     }
 
-    private int bgColor = R.color.white_bg;
-    private int startCurveColor = R.color.white_curve_start;
-    private int startRectangleColor = R.color.white_rect_start;
-    private int endCurveColor = R.color.white_curve_end;
-    private int endRectangleColor = R.color.white_rect_end;
+    private int bgColor = Color.WHITE;
+    private int startCurveColor;
+    private int startColumnColor;
+    private int endCurveColor;
+    private int endColumnColor;
     private float curveGradientScaleX = 1f;
-    private float rectGradientScaleX = 1f;
+    private float columnGradientScaleX = 1f;
+
+    public void setDyCharts(int dyCharts) {
+        this.dyCharts = dyCharts;
+    }
+
     /**
      * 两图上下间距
      */
-    private int dyEachOther = 50;
-    private int marginTop = 10;
-    private int marginBottom = 10;
+    private int dyCharts = 0;
+
+    public void setMarginTop(int marginTop) {
+        this.marginTop = marginTop;
+    }
+
+    private int marginTop = 0;
+
+    public void setMarginBottom(int marginBottom) {
+        this.marginBottom = marginBottom;
+    }
+
+    private int marginBottom = 0;
     private static final int CIRCLE_SIZE = 10;
     private float mPointRadius = CIRCLE_SIZE / 2;
 
@@ -94,14 +109,12 @@ public class CombineChartView extends View implements TouchActionListener {
     /**
      * 矩形图的最大y
      */
-    private int rectMaxY = 0;
-    private int rectMinY = 0;
+    private int columnMaxY = 0;
     /**
      * 曲线图的 基准高度
      */
     private int curveMaxY = 0;
-    private int curveMinY = 0;
-    private int rectangleScaleFactor = 1;
+    private int columnScaleFactor = 1;
     private int curveScaleFactor = 1;
 
     private boolean isMeasure = true;
@@ -109,7 +122,7 @@ public class CombineChartView extends View implements TouchActionListener {
     /**
      * 矩形所在区域最大值
      */
-    private float maxYRectangleValue;
+    private float maxYColumnValue;
 
     /**
      * x轴的间距
@@ -120,13 +133,13 @@ public class CombineChartView extends View implements TouchActionListener {
     /**
      * 纵坐标值
      */
-    private ArrayList<Integer> yRawData;
-    private List<Integer> yRectabgleRawData;
+    private List<Float> yCurveRawData;
+    private List<Float> yColumnRawData;
     /**
      * 横坐标值
      */
-    private ArrayList<String> xRawDatas;
-    private ArrayList<Float> xList = new ArrayList<Float>();// 记录每个x的值
+    private List<String> xRawDatas;
+    private List<Float> xList = new ArrayList<Float>();// 记录每个x的值
 
     public CombineChartView(Context context) {
         this(context, null);
@@ -157,8 +170,8 @@ public class CombineChartView extends View implements TouchActionListener {
             }
         }
         if (mRects != null) {
-            Log.e(TAG, "isHit: rectangleLineRect.contains(curX,curY)" + rectangleLineRect.contains(curX, curY) + "," + rectangleLineRect.flattenToString());
-            if (rectangleLineRect.contains(curX, curY)) {
+            Log.e(TAG, "isHit: columnLineRect.contains(curX,curY)" + columnLineRect.contains(curX, curY) + "," + columnLineRect.flattenToString());
+            if (columnLineRect.contains(curX, curY)) {
                 for (int i = 0; i < mRects.length; i++) {
                     Rect rect = mRects[i];
                     int left = rect.left;
@@ -175,7 +188,10 @@ public class CombineChartView extends View implements TouchActionListener {
     private void initView() {
         this.res = mContext.getResources();
         this.mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-
+        startCurveColor = res.getColor(R.color.white_curve_start);
+        startColumnColor = res.getColor(R.color.white_column_start);
+        endCurveColor = res.getColor(R.color.white_curve_end);
+        endColumnColor = res.getColor(R.color.white_column_end);
         dm = new DisplayMetrics();
         WindowManager wm = (WindowManager) mContext.getSystemService(Context.WINDOW_SERVICE);
         wm.getDefaultDisplay().getMetrics(dm);
@@ -184,69 +200,71 @@ public class CombineChartView extends View implements TouchActionListener {
 
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
-        if (isMeasure) {
+        if (isMeasure && mChartStyle != null) {
             this.canvasHeight = getHeight();
             this.canvasWidth = getWidth();
 
             switch (mChartStyle) {
                 case Column: {
-                    if (rectMaxY == 0) {
-                        rectMinY = marginTop;
-                        rectMaxY = (canvasHeight - marginBottom);
-                        rectangleLineRect = new Rect(0, rectMinY, canvasWidth, rectMaxY);
+                    if (columnMaxY == 0) {
+                        int columnMinY = marginTop;
+                        columnMaxY = (canvasHeight - marginBottom);
+                        maxYColumnValue = (canvasHeight - marginBottom - marginTop);
+                        columnLineRect = new Rect(0, columnMinY, canvasWidth, columnMaxY);
                     }
                     break;
                 }
 
                 case Curve: {
                     if (curveMaxY == 0) {
-                        curveMinY = marginTop;
+                        int curveMinY = marginTop;
                         curveMaxY = (canvasHeight - marginBottom);
+                        maxYValue = (canvasHeight - marginBottom - marginTop);
                         curveLineRect = new Rect(0, curveMinY, canvasWidth, curveMaxY);
                     }
                     break;
                 }
 
                 case CombineDatagram: {
-                    int enableValue = canvasHeight - marginBottom - marginTop - dyEachOther;
-                    float rectScale = rectangleScaleFactor * 1.0f / (rectangleScaleFactor + curveScaleFactor);
-                    float curveScale = curveScaleFactor * 1.0f / (rectangleScaleFactor + curveScaleFactor);
-                    maxYRectangleValue = rectScale * enableValue;
+                    int enableValue = canvasHeight - marginBottom - marginTop - dyCharts;
+                    float rectScale = columnScaleFactor * 1.0f / (columnScaleFactor + curveScaleFactor);
+                    float curveScale = curveScaleFactor * 1.0f / (columnScaleFactor + curveScaleFactor);
+                    maxYColumnValue = rectScale * enableValue;
                     maxYValue = curveScale * enableValue;
                     if (curveMaxY == 0) {
-                        curveMinY = marginTop;
+                        int  curveMinY = marginTop;
                         curveMaxY = (int) (curveMinY + maxYValue);
                         curveLineRect = new Rect(0, curveMinY, canvasWidth, curveMaxY);
                     }
 
-                    if (rectMaxY == 0) {
-                        rectMinY = curveMaxY + dyEachOther;
-                        rectMaxY = (int) (rectMinY + maxYRectangleValue);
-                        rectangleLineRect = new Rect(0, rectMinY, canvasWidth, rectMaxY);
+                    if (columnMaxY == 0) {
+                        int columnMinY = curveMaxY + dyCharts;
+                        columnMaxY = (int) (columnMinY + maxYColumnValue);
+                        columnLineRect = new Rect(0, columnMinY, canvasWidth, columnMaxY);
                     }
-
-                    Log.e(TAG, "onSizeChanged: maxYValue" + maxYValue + ",maxYRectangleValue:" + maxYRectangleValue + ",rectMaxY:" + rectMaxY + ",rectMinY:" + rectMinY + ",curveMaxY:" + curveMaxY + ",curveMinY:" + curveMinY);
-
                     break;
                 }
             }
+            Log.e(TAG, "onSizeChanged: maxYValue" + maxYValue + ",maxYColumnValue:" + maxYColumnValue + ",columnMaxY:" + columnMaxY + ",curveMaxY:" + curveMaxY+",canvasHeight:"+canvasHeight);
 
             isMeasure = false;
         }
     }
 
     private Rect curveLineRect;
-    private Rect rectangleLineRect;
+    private Rect columnLineRect;
 
     @Override
     protected void onDraw(Canvas canvas) {
+        if (mChartStyle == null) {
+            return;
+        }
         prepareXList();
-
         if (mChartStyle == ChartStyle.Curve || mChartStyle == ChartStyle.CombineDatagram) {
             mPoints = getPoints();
             mPaint.setStrokeWidth(dip2px(2.5f));
             mPaint.setStyle(Style.STROKE);
-            mPaint.setShader(new LinearGradient(0, 0, curveGradientScaleX * canvasWidth, 0, res.getColor(startCurveColor), res.getColor(endCurveColor), Shader.TileMode.MIRROR));
+            mPaint.setShader(new LinearGradient(0, 0, curveGradientScaleX * canvasWidth, 0, startCurveColor, endCurveColor, Shader.TileMode.MIRROR));
             if (mLineStyle == Linestyle.Curve) {
                 drawScrollLine(canvas);
             } else {
@@ -257,18 +275,17 @@ public class CombineChartView extends View implements TouchActionListener {
             drawCircles(canvas);
         }
 
-
         if (mChartStyle == ChartStyle.Column || mChartStyle == ChartStyle.CombineDatagram) {
-            mRects = getmRects();
-            mPaint.setShader(new LinearGradient(0, 0, rectGradientScaleX * canvasWidth, 0, res.getColor(startRectangleColor), res.getColor(endRectangleColor), Shader.TileMode.MIRROR));
-            drawRectangle(canvas, mRects);
+            mRects = getmColumns();
+            mPaint.setShader(new LinearGradient(0, 0, columnGradientScaleX * canvasWidth, 0, startColumnColor, endColumnColor, Shader.TileMode.MIRROR));
+            drawColumn(canvas, mRects);
         }
 
         drawBg(canvas);
     }
 
     private void drawBg(Canvas canvas) {
-        setBackgroundColor(res.getColor(bgColor));
+        setBackgroundColor(bgColor);
     }
 
     private void prepareXList() {
@@ -280,73 +297,23 @@ public class CombineChartView extends View implements TouchActionListener {
     }
 
     private Point[] getPoints() {
-        Point[] points = new Point[yRawData.size()];
-        int minRawValue = yRawData.get(0), maxRawValue = yRawData.get(0);
-        for (int i = 1; i < yRawData.size(); i++) {
-            Integer value = yRawData.get(i);
+        int size = yCurveRawData.size();
+        Point[] points = new Point[size];
+        float maxRawValue = yCurveRawData.get(0);
+        for (int i = 1; i < size; i++) {
+            float value = yCurveRawData.get(i);
             if (maxRawValue < value) {
                 maxRawValue = value;
             }
-            if (minRawValue > value) {
-                minRawValue = value;
-            }
         }
 
-        int newMaxValue = Integer.MIN_VALUE;
-        int newMinValue = Integer.MAX_VALUE;
-        //转换坐标系后的数组
-        Integer[] newData = new Integer[yRawData.size()];
-        for (int i = 0; i < yRawData.size(); i++) {
-            float oldValue = yRawData.get(i) * 1.0f;
-            int newValue = (int) (curveMaxY * (1 - (oldValue / maxRawValue)));
-            if (newMaxValue < newValue) {
-                newMaxValue = newValue;
-            }
-            if (newMinValue > newValue) {
-                newMinValue = newValue;
-            }
-            newData[i] = newValue;
-        }
-
-      getNewMaxValue(newMaxValue, newMinValue,curveMinY,curveMaxY, newData);
-
-
-        for (int i = 0; i < newData.length; i++) {
-            points[i] = new Point(xList.get(i).intValue(), newData[i]);
+        for (int i = 0; i < size; i++) {
+            float oldValue = yCurveRawData.get(i) * 1.0f;
+            int newValue = (int) (maxYValue * (1 - oldValue / maxRawValue) + marginTop );
+            Log.e(TAG, "getPoints: newValue"+newValue+",oldValue:"+oldValue+",maxRawValue:"+maxRawValue+",marginTop:"+marginTop+",maxYValue:"+maxYValue);
+            points[i] = new Point(xList.get(i).intValue(), newValue);
         }
         return points;
-    }
-
-    private int getNewMaxValue(int newMaxValue, int newMinValue,int standardMinY, int standardMaxY, Integer[] newData) {
-        //最低点向下平移
-        if (newMinValue < standardMinY) {
-            int dy = standardMinY - newMinValue;
-            newMaxValue += dy;
-            newMinValue += dy;
-            for (int i = 0; i < newData.length; i++) {
-                newData[i] += dy;
-            }
-
-            //再缩放
-            for (int i = 0; i < newData.length; i++) {
-                float oldValue = newData[i] * 1.0f;
-                int newValue = (int) (oldValue * standardMaxY / newMaxValue);
-                newData[i] = newValue;
-            }
-
-
-            int newMaxValue2 = (int) (newMaxValue * standardMaxY / newMaxValue*1.0f);
-            int newMinValue2 = (int) (newMinValue * standardMaxY / newMaxValue*1.0f);
-
-            if(newMinValue2+2 >= standardMinY && newMaxValue2-2 <= standardMaxY){
-                return newMaxValue2;
-            }
-            //缩放之后再次获取最小值
-            Log.e(TAG, "getNewMaxValue: newMinValue:"+newMinValue+",standardMinY:"+standardMinY+",newMaxValue:"+newMaxValue+",standardMaxY:"+standardMaxY+",newMaxValue2:"+newMaxValue2+",newMinValue2:"+newMinValue2);
-            return  getNewMaxValue( newMaxValue2,  newMinValue2, standardMinY,  standardMaxY,newData);
-        }else{
-            return newMaxValue;
-        }
     }
 
     private void drawCircles(Canvas canvas) {
@@ -386,66 +353,57 @@ public class CombineChartView extends View implements TouchActionListener {
         }
     }
 
-    private void drawRectangle(Canvas canvas, Rect[] rects) {
+    private void drawColumn(Canvas canvas, Rect[] rects) {
         for (int i = 0; i < rects.length; i++) {
             canvas.drawRect(rects[i], mPaint);
         }
     }
 
-    private Rect[] getmRects() {
-        Rect[] rects = new Rect[yRectabgleRawData.size()];
+    private Rect[] getmColumns() {
+        Rect[] rects = new Rect[yColumnRawData.size()];
 
-        int minRawValue = yRectabgleRawData.get(0), maxRawValue = yRectabgleRawData.get(0);
-        for (int i = 0; i < yRectabgleRawData.size(); i++) {
-            Integer value = yRectabgleRawData.get(i);
+        float maxRawValue = yColumnRawData.get(0);
+        for (int i = 0; i < yColumnRawData.size(); i++) {
+            float value = yColumnRawData.get(i);
             if (maxRawValue < value) {
                 maxRawValue = value;
             }
-            if (minRawValue > value) {
-                minRawValue = value;
-            }
         }
-
-        int newMaxValue = Integer.MIN_VALUE;
-        int newMinValue = Integer.MAX_VALUE;
-        //转换坐标系后的数组
-        Integer[] newData = new Integer[yRectabgleRawData.size()];
-        for (int i = 0; i < yRectabgleRawData.size(); i++) {
-            float oldValue = yRectabgleRawData.get(i) * 1.0f;
-            int newValue = (int) (rectMaxY * (1 - (oldValue / maxRawValue)));
-            if (newMaxValue < newValue) {
-                newMaxValue = newValue;
-            }
-            if (newMinValue > newValue) {
-                newMinValue = newValue;
-            }
-            newData[i] = newValue;
-        }
-
-        getNewMaxValue(newMaxValue, newMinValue,rectMinY,rectMaxY, newData);
-        //再缩放
         int dx = (int) (xList.get(1) - xList.get(0) - (xDistanceValue <= 2 ? 2 : xDistanceValue));
-        for (int i = 0; i < newData.length; i++) {
-            int top = newData[i];
-            int bottom = rectMaxY;
+        for (int i = 0; i < yColumnRawData.size(); i++) {
+            float oldValue = yColumnRawData.get(i) * 1.0f;
+            int newValue = (int) (maxYColumnValue * (1 - oldValue / maxRawValue) + marginTop + dyCharts + maxYValue);
+            int top = newValue;
+            int bottom = columnMaxY;
             float x = xList.get(i);
             int left = (int) (x - dx / 2);
             int right = (int) (x + dx / 2);
             //int left, int top, int right, int bottom
-            Log.e(TAG, "getmRects: left:" + left + ",top:" + top + ",right:" + right + ",bottom:" + bottom);
+            Log.e(TAG, "getmColumns: left:" + left + ",top:" + top + ",right:" + right + ",bottom:" + bottom);
             rects[i] = new Rect(left, top, right, bottom);
         }
         return rects;
     }
 
+    public void setData(List<String> xRawData, List<Float> yCurveData, int curveScale, List<Float> yColumnData,
+                        int columnScale) {
+        setData(xRawData, 2, yCurveData, curveScale, yColumnData, columnScale);
+    }
 
-    public void setData(ArrayList<String> xRawData, int xDistanceValue, ArrayList<Integer> yRawData, int curveScale, ArrayList<Integer> yRectangleList,
-                        int rectangleScale) {
+    public void setData(List<String> xRawData, int xDistanceValue, List<Float> yCurveData, int curveScale, List<Float> yColumnData,
+                        int columnScale) {
+        if (yCurveData == null || yColumnData == null || yCurveData.size() != yColumnData.size()) {
+            return;
+        }
+        this.curveScaleFactor = curveScale;
+
         //曲线坐标
-        setCurveParams(yRawData, curveScale);
+        setCurveParams(yCurveData);
+
+        this.columnScaleFactor = columnScale;
 
         //柱形图坐标
-        setRectangleParams(yRectangleList, rectangleScale);
+        setRectangleParams(yColumnData);
 
         //公共坐标参数
         setXParams(xRawData, xDistanceValue);
@@ -455,10 +413,13 @@ public class CombineChartView extends View implements TouchActionListener {
         invalidate();
     }
 
-    public void setData(ArrayList<String> xRawData, int xDistanceValue, ArrayList<Integer> yRectangleList,
-                        int rectangleScale) {
+    public void setColumnData(List<String> xRawData, List<Float> yColumnList) {
+        setColumnData(xRawData, 2, yColumnList);
+    }
+
+    public void setColumnData(List<String> xRawData, int xDistanceValue, List<Float> yColumnList) {
         //柱形图坐标
-        setRectangleParams(yRectangleList, rectangleScale);
+        setRectangleParams(yColumnList);
 
         //公共坐标参数
         setXParams(xRawData, xDistanceValue);
@@ -468,9 +429,14 @@ public class CombineChartView extends View implements TouchActionListener {
         invalidate();
     }
 
-    public void setCurveData(ArrayList<String> xRawData, int xDistanceValue, ArrayList<Integer> yRawData, int curveScale) {
+    public void setCurveData(List<String> xRawData, List<Float> yCurveList) {
+        setCurveData(xRawData, 2, yCurveList);
+    }
+
+    public void setCurveData(List<String> xRawData, int xDistanceValue, List<Float> yRawData) {
+
         //曲线坐标
-        setCurveParams(yRawData, curveScale);
+        setCurveParams(yRawData);
 
         //公共坐标参数
         setXParams(xRawData, xDistanceValue);
@@ -480,19 +446,19 @@ public class CombineChartView extends View implements TouchActionListener {
         invalidate();
     }
 
-    private void setXParams(ArrayList<String> xRawData, int xDistanceValue) {
+    private void setXParams(List<String> xRawData, int xDistanceValue) {
         this.xDistanceValue = xDistanceValue;
         this.xRawDatas = xRawData;
+
+        Log.e(TAG, "setXParams:xRawData: " + xRawData.size());
     }
 
-    private void setRectangleParams(List<Integer> yRectangleList, int rectangleScale) {
-        this.yRectabgleRawData = yRectangleList;
-        this.rectangleScaleFactor = rectangleScale;
+    private void setRectangleParams(List<Float> yColumnList) {
+        this.yColumnRawData = yColumnList;
     }
 
-    private void setCurveParams(ArrayList<Integer> yRawData, int curveScale) {
-        this.yRawData = yRawData;
-        this.curveScaleFactor = curveScale;
+    private void setCurveParams(List<Float> yRawData) {
+        this.yCurveRawData = yRawData;
     }
 
     String selectValue = "";
@@ -508,10 +474,10 @@ public class CombineChartView extends View implements TouchActionListener {
                     pointSize = mPoints.length;
                 }
                 if (hit <= pointSize) {
-                    selectValue = " line:(" + xRawDatas.get(hit) + "," + yRawData.get(hit) + ")";
+                    selectValue = " line:(" + xRawDatas.get(hit) + "," + yCurveRawData.get(hit) + ")";
                 } else {
                     hit -= pointSize;
-                    selectValue = " rectangle:(" + xRawDatas.get(hit) + "," + yRectabgleRawData.get(hit) + ")";
+                    selectValue = " rectangle:(" + xRawDatas.get(hit) + "," + yColumnRawData.get(hit) + ")";
                 }
             }
 //            else {

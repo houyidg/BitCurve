@@ -26,6 +26,6 @@
     <color name="white_curve_start">#EFB4B7</color>
     <color name="white_curve_end">#E93DA8</color>
 
-    <color name="white_rect_start">#F9E89D</color>
-    <color name="white_rect_end">#F2A8EC</color>
+    <color name="white_column_start">#F9E89D</color>
+    <color name="white_column_end">#F2A8EC</color>
 </resources>
